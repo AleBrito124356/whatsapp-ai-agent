@@ -22,7 +22,9 @@ import unicodedata
 from datetime import date as date_cls
 from datetime import datetime, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
+from .clock import Clock, system_clock
 from .catalog import (
     DAY_ABBR,
     MONTH_ABBR,
@@ -88,12 +90,19 @@ class Agent:
         store: Store,
         kb: KnowledgeBase,
         llm: LLMClient,
+        clock: Optional[Clock] = None,
     ):
         self.settings = settings
         self.wa = wa
         self.store = store
         self.kb = kb
         self.llm = llm
+        self.clock: Clock = clock or system_clock
+        try:
+            self.tz = ZoneInfo(settings.timezone)
+        except Exception:  # pragma: no cover - bad tz name / missing tzdata
+            log.warning("Unknown BUSINESS_TIMEZONE %r; using UTC", settings.timezone)
+            self.tz = ZoneInfo("UTC")
 
     # ================================================================= entry
     def handle_message(self, msg: InboundMessage) -> None:
@@ -495,12 +504,8 @@ class Agent:
 
     # --------------------------------------------------------------- time
     def _now(self) -> datetime:
-        try:
-            from zoneinfo import ZoneInfo
-
-            return datetime.now(ZoneInfo(self.settings.timezone))
-        except Exception:  # pragma: no cover - missing tzdata / bad tz name
-            return datetime.now()
+        """Current time in the business timezone, from the injectable clock."""
+        return self.clock().astimezone(self.tz)
 
     def _open_days(self, count: int) -> list[date_cls]:
         days: list[date_cls] = []
