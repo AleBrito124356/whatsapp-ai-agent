@@ -91,7 +91,7 @@ def test_forged_payloads_from_idle_create_nothing(agent, store, wa):
         agent.handle_message(msg)
     assert store.list_bookings(status=None) == []
     assert store.get_conversation(EVE).state != "booking_confirm"
-    assert sum(1 for m in wa.outbound() if m["body"] == EXPIRED_ES) >= 3
+    assert sum(1 for m in wa.outbound() if m["body"] == EXPIRED_ES) == 4
 
 
 @pytest.mark.parametrize(

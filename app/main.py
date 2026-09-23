@@ -62,9 +62,11 @@ def create_app(services: Optional[Services] = None, settings: Optional[Settings]
     )
     app.state.get_services = get_services
 
+    from .admin import router as admin_router
     from .webhook import router as webhook_router
 
     app.include_router(webhook_router)
+    app.include_router(admin_router)
 
     if settings.dry_run:
         from .dev import router as dev_router
@@ -86,7 +88,13 @@ def create_app(services: Optional[Services] = None, settings: Optional[Settings]
 
     @app.get("/")
     async def root() -> dict:
-        links = {"name": "whatsapp-ai-agent", "webhook": "/webhook", "health": "/health", "docs": "/docs"}
+        links = {
+            "name": "whatsapp-ai-agent",
+            "webhook": "/webhook",
+            "health": "/health",
+            "admin": "/admin/handoffs",
+            "docs": "/docs",
+        }
         if settings.dry_run:
             links["outbox"] = "/dev/outbox"
         return links
@@ -102,6 +110,10 @@ def _log_startup(settings: Settings) -> None:
         )
     if not settings.signature_enforced:
         log.warning("WHATSAPP_APP_SECRET is empty: webhook signatures are NOT verified.")
+    if not settings.admin_enabled:
+        log.info("Staff API (/admin) disabled: set ADMIN_TOKEN to enable it.")
+    elif len(settings.admin_token) < 16:
+        log.warning("ADMIN_TOKEN is shorter than 16 characters; use a long random value.")
 
 
 app = create_app()

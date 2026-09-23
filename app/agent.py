@@ -2,7 +2,8 @@
 
 Flow per inbound message (one contact at a time, see ``_lock_for``)::
 
-    record inbound -> language (free text only) -> human took over? ->
+    record inbound -> opted out? (BAJA/STOP ... ALTA/START) ->
+    language (free text only) -> human took over? ->
     interactive reply? -> typed option / reset / name step ->
     intent route {booking | manage | human | info}
 
@@ -177,6 +178,36 @@ def is_reset(text: str) -> bool:
     return bool(toks) and len(toks) <= 3 and bool(toks & RESET_KW) and not is_manage_request(text)
 
 
+# Opt-out / opt-in keywords. Matched against the WHOLE message (accents and
+# punctuation ignored) so "¿el local está en planta baja?" is not an opt-out.
+OPT_OUT_ES = {
+    "baja", "darme de baja", "dar de baja", "de baja", "cancelar suscripcion",
+    "no mas mensajes", "no quiero mas mensajes", "no me escriban mas",
+}
+OPT_OUT_EN = {"unsubscribe", "opt out", "optout", "stop all", "stopall"}
+OPT_OUT_ANY = {"stop"}
+OPT_IN_ES = {"alta", "darme de alta", "dar de alta", "suscribirme", "reanudar"}
+OPT_IN_EN = {"subscribe", "unstop", "opt in", "optin"}
+OPT_IN_ANY = {"start"}
+
+
+def is_opt_out(text: str) -> bool:
+    return _norm(text) in OPT_OUT_ES | OPT_OUT_EN | OPT_OUT_ANY
+
+
+def is_opt_in(text: str) -> bool:
+    return _norm(text) in OPT_IN_ES | OPT_IN_EN | OPT_IN_ANY
+
+
+def _keyword_lang(text: str) -> Optional[str]:
+    norm = _norm(text)
+    if norm in OPT_OUT_ES | OPT_IN_ES:
+        return "es"
+    if norm in OPT_OUT_EN | OPT_IN_EN:
+        return "en"
+    return None  # STOP / START are used in both languages
+
+
 def looks_like_name(text: str) -> bool:
     s = text.strip()
     if not 2 <= len(s) <= 60:
@@ -267,6 +298,17 @@ class Agent:
 
         self.store.add_message(wa_id, "user", self._describe_inbound(msg, text))
         self.store.touch_user(wa_id)
+
+        # Compliance before anything else. An opted-out contact gets nothing
+        # at all (not even a read receipt) until they opt back in.
+        typed = text if (text and not payload_id) else None
+        if conv.opted_out:
+            if typed and is_opt_in(typed):
+                self._opt_in(conv, msg, typed)
+            return
+        if typed and is_opt_out(typed):
+            self._opt_out(conv, msg, typed)
+            return
 
         self.wa.mark_read(msg.message_id)
 
@@ -969,7 +1011,16 @@ class Agent:
             self._send_text(wa_id, body)
             return True
 
-        self._escalate(conv, reason="no_answer")
+        # Nothing matched. Offer a person instead of muting the bot with an
+        # automatic handoff: the customer decides.
+        self._send_buttons(
+            wa_id,
+            t("no_answer", lang, business=self.settings.business_name),
+            [
+                {"id": "menu:human", "title": t("menu_human", lang)},
+                {"id": "menu:main", "title": t("menu_main", lang)},
+            ],
+        )
         return False
 
     def _llm_answer(self, wa_id: str, lang: str, text: str, context: str) -> Optional[str]:
@@ -992,6 +1043,37 @@ class Agent:
             {"role": "user", "content": f"CONTEXT:\n{context or '(no matching FAQ)'}\n\nQUESTION: {text}"}
         )
         return self.llm.chat(messages, temperature=0.3, max_tokens=400)
+
+    # ========================================================= compliance
+    def _opt_out(self, conv: Conversation, msg: InboundMessage, text: str) -> None:
+        wa_id = conv.wa_id
+        lang = _keyword_lang(text) or conv.lang
+        if lang != conv.lang:
+            self.store.set_lang(wa_id, lang)
+            conv.lang = lang
+        # Drop whatever was in progress. Staff cannot message an opted-out
+        # contact either, so an open handoff is closed too.
+        if conv.handoff:
+            self.store.set_handoff(wa_id, False)
+            self.store.resolve_handoffs(wa_id, by="opt_out")
+            conv.handoff = False
+        self._reset(conv)
+        self.store.set_opted_out(wa_id, True)
+        conv.opted_out = True
+        self.wa.mark_read(msg.message_id)
+        self._send_text(wa_id, t("optout_ack", lang))
+
+    def _opt_in(self, conv: Conversation, msg: InboundMessage, text: str) -> None:
+        wa_id = conv.wa_id
+        lang = _keyword_lang(text) or conv.lang
+        if lang != conv.lang:
+            self.store.set_lang(wa_id, lang)
+            conv.lang = lang
+        self.store.set_opted_out(wa_id, False)
+        conv.opted_out = False
+        self.wa.mark_read(msg.message_id)
+        self._send_text(wa_id, t("optin_ack", lang))
+        self._send_menu(wa_id, lang)
 
     # ============================================================ handoff
     def _escalate(self, conv: Conversation, reason: str, announce: bool = True) -> None:

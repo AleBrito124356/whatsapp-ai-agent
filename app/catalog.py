@@ -256,9 +256,9 @@ STRINGS: dict[str, tuple[str, str]] = {
     # ------------------------------------------------------ compliance
     "optout_ack": (
         "Listo, no te enviaremos más mensajes por este chat. Si cambias de "
-        "opinión, escribe ALTA. 👋",
+        "opinión, escribe ALTA (o START). 👋",
         "Done: you won't get any more messages from us here. If you change your "
-        "mind, reply START. 👋",
+        "mind, reply START (or ALTA). 👋",
     ),
     "optin_ack": (
         "¡Bienvenido de vuelta! Volverás a recibir nuestras respuestas. 🙌",
