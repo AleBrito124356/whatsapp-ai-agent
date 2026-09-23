@@ -13,13 +13,38 @@ from typing import Optional
 # --- Service menu -----------------------------------------------------------
 # Keep ids stable; they are stored on bookings and encoded in interactive reply
 # payloads (e.g. "svc:svc_corte"). Titles must be <= 24 chars for WhatsApp rows.
+# This is the source of truth for prices and durations: the bot answers price
+# questions from it, and tests/test_catalog_consistency.py fails if
+# kb/prices.md or kb/services.md disagree with it. ``aliases`` are the words
+# customers use for the service (any language, accents optional); the longest
+# alias found in a question wins, so "corte y barba" beats "corte".
 SERVICES: list[dict] = [
-    {"id": "svc_corte", "es": "Corte de cabello", "en": "Haircut", "price": 12, "minutes": 30},
-    {"id": "svc_corte_barba", "es": "Corte + barba", "en": "Haircut + beard", "price": 18, "minutes": 45},
-    {"id": "svc_afeitado", "es": "Afeitado clásico", "en": "Classic shave", "price": 10, "minutes": 30},
-    {"id": "svc_barba", "es": "Arreglo de barba", "en": "Beard trim", "price": 8, "minutes": 20},
-    {"id": "svc_infantil", "es": "Corte infantil", "en": "Kids haircut", "price": 9, "minutes": 30},
-    {"id": "svc_tinte", "es": "Tinte / color", "en": "Hair color", "price": 25, "minutes": 60},
+    {
+        "id": "svc_corte", "es": "Corte de cabello", "en": "Haircut", "price": 12, "minutes": 30,
+        "aliases": ["corte de cabello", "corte de pelo", "corte", "haircut", "hair cut", "cut"],
+    },
+    {
+        "id": "svc_corte_barba", "es": "Corte + barba", "en": "Haircut + beard", "price": 18, "minutes": 45,
+        "aliases": ["corte barba", "corte y barba", "corte con barba", "haircut beard",
+                    "haircut and beard", "cut and beard", "haircut with beard"],
+    },
+    {
+        "id": "svc_afeitado", "es": "Afeitado clásico", "en": "Classic shave", "price": 10, "minutes": 30,
+        "aliases": ["afeitado", "afeitada", "rasurado", "shave", "shaving"],
+    },
+    {
+        "id": "svc_barba", "es": "Arreglo de barba", "en": "Beard trim", "price": 8, "minutes": 20,
+        "aliases": ["arreglo de barba", "barba", "beard trim", "beard"],
+    },
+    {
+        "id": "svc_infantil", "es": "Corte infantil", "en": "Kids haircut", "price": 9, "minutes": 30,
+        "aliases": ["corte infantil", "corte de nino", "corte para ninos", "infantil", "nino", "ninos",
+                    "kids haircut", "kids", "kid", "child", "children"],
+    },
+    {
+        "id": "svc_tinte", "es": "Tinte / color", "en": "Hair color", "price": 25, "minutes": 60,
+        "aliases": ["tinte", "color", "colour", "coloracion", "canas", "dye", "hair color"],
+    },
 ]
 
 _SERVICE_BY_ID = {s["id"]: s for s in SERVICES}
@@ -281,6 +306,23 @@ STRINGS: dict[str, tuple[str, str]] = {
         "Here's what I heard: \"{text}\"",
     ),
     # -------------------------------------------------------------- faq
+    "price_header": ("Nuestros precios (USD):", "Our prices (USD):"),
+    "price_footer": (
+        "Pregunta también por nuestras *promociones*. Para reservar, escribe *reservar*. 💈",
+        "Ask about our *promotions* too. To book, type *book*. 💈",
+    ),
+    "hours_header": ("Nuestro horario:", "Our opening hours:"),
+    "hours_footer": (
+        "La última cita se agenda una hora antes del cierre.",
+        "The last appointment is one hour before closing.",
+    ),
+    "hours_day": (
+        "🕐 El {day} abrimos de {open} a {close} (última cita: {last}).",
+        "🕐 On {day} we're open from {open} to {close} (last appointment: {last}).",
+    ),
+    "hours_closed_day": ("🕐 Los {days} estamos cerrados.", "🕐 We're closed on {days}."),
+    "day_range": ("{first} a {last}", "{first} to {last}"),
+    "closed": ("cerrado", "closed"),
     "fallback_prefix": (
         "Esto es lo que encontré:",
         "Here's what I found:",

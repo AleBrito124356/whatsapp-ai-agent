@@ -43,6 +43,8 @@ from .catalog import (
 from .clock import Clock, system_clock
 from .config import Settings
 from .db import SlotTaken
+from .facts import answer as catalog_answer
+from .facts import facts_context
 from .kb import KnowledgeBase
 from .llm import LLMClient
 from .models import InboundMessage
@@ -224,6 +226,32 @@ def looks_like_name(text: str) -> bool:
     toks = _tokens(s)
     banned = BOOK_KW | HUMAN_KW | GREETING_KW | RESET_KW | MANAGE_VERBS | INFO_WORDS | QUESTION_WORDS
     return not toks & banned
+
+
+def whatsapp_snippet(markdown: str, limit: int = 900) -> str:
+    """Render a knowledge-base section for WhatsApp, which has no Markdown.
+
+    Headings become *bold*, **bold** becomes *bold*, and table rows become
+    "cell: cell" lines (the header and separator rows are dropped).
+    """
+    lines = markdown.strip().splitlines()
+    out: list[str] = []
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            out.append(f"*{stripped.lstrip('#').strip()}*")
+        elif stripped.startswith("|"):
+            cells = [c.strip() for c in stripped.strip("|").split("|")]
+            if all(set(c) <= set("-: ") for c in cells):
+                continue  # |---|---|
+            nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+            if nxt.startswith("|") and all(set(c.strip()) <= set("-: ") for c in nxt.strip("|").split("|")):
+                continue  # header row
+            out.append(f"{cells[0]}: {' · '.join(cells[1:])}" if len(cells) > 1 else cells[0])
+        else:
+            out.append(re.sub(r"\*\*(.+?)\*\*", r"*\1*", line))
+    text = "\n".join(out).strip()
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
 
 
 def _parse_hour(text: str) -> Optional[int]:
@@ -1007,20 +1035,29 @@ class Agent:
 
     # =============================================================== info
     def _answer_info(self, conv: Conversation, text: str) -> bool:
-        """Answer a free-text question. Returns True if an answer was sent."""
+        """Answer a free-text question. Returns True if an answer was sent.
+
+        Order: the LLM (grounded on catalog facts + KB) when configured; then an
+        exact answer from the catalog for price/hours questions; then the best
+        knowledge-base section; then an offer to talk to a person.
+        """
         wa_id, lang = conv.wa_id, conv.lang
-        context = self.kb.context(text, k=4)
 
         if self.llm.available:
-            answer = self._llm_answer(wa_id, lang, text, context)
+            answer = self._llm_answer(wa_id, lang, text, self.kb.context(text, k=4))
             if answer:
                 self._send_text(wa_id, answer)
                 return True
 
+        structured = catalog_answer(text, lang, self._now().date())
+        if structured:
+            self._send_text(wa_id, structured)
+            return True
+
         # Offline / LLM-failed fallback: return the single best snippet.
         top = self.kb.search(text, k=1)
         if top:
-            body = f"{t('fallback_prefix', lang)}\n\n{top[0].text.strip()[:900]}"
+            body = f"{t('fallback_prefix', lang)}\n\n{whatsapp_snippet(top[0].text)}"
             self._send_text(wa_id, body)
             return True
 
@@ -1042,19 +1079,19 @@ class Agent:
             f"You are the WhatsApp assistant for {self.settings.business_name}, "
             f"{self.settings.business_description}. Answer ONLY using the CONTEXT "
             "below. Be warm and concise (2-4 short sentences) with WhatsApp-friendly "
-            f"formatting. Always reply in {lang_name}. If the answer is not in the "
-            "context, say you are not sure and offer to connect the customer with a "
-            "person; never invent details. If the customer seems ready to book, "
-            "invite them to reply 'reservar' or 'book'."
+            f"formatting. Always reply in {lang_name}. The BUSINESS FACTS in the "
+            "context are authoritative for prices, durations and opening hours. If "
+            "the answer is not in the context, say you are not sure and offer to "
+            "connect the customer with a person; never invent details. If the "
+            "customer seems ready to book, invite them to reply 'reservar' or 'book'."
         )
         history = self.store.history(wa_id, limit=6)
         messages = [{"role": "system", "content": system}]
         for turn in history[:-1]:  # exclude the just-added user turn
             if turn["role"] in ("user", "assistant"):
                 messages.append(turn)
-        messages.append(
-            {"role": "user", "content": f"CONTEXT:\n{context or '(no matching FAQ)'}\n\nQUESTION: {text}"}
-        )
+        grounding = facts_context() + "\n\n" + (context or "(no matching FAQ article)")
+        messages.append({"role": "user", "content": f"CONTEXT:\n{grounding}\n\nQUESTION: {text}"})
         return self.llm.chat(messages, temperature=0.3, max_tokens=400)
 
     # ========================================================= compliance
