@@ -151,6 +151,15 @@ def test_resolve_without_notification_and_outside_the_window(client, services, c
     assert client.post("/admin/handoffs/000/resolve", headers=AUTH).status_code == 404
 
 
+def test_resolving_a_chat_that_was_never_handed_off_changes_nothing(client, services, wa):
+    say(services, "quiero una cita")  # mid-booking, never handed off
+    wa.sent.clear()
+    resp = client.post(f"/admin/handoffs/{ANA}/resolve", headers=AUTH).json()
+    assert resp["resolved"] == 0 and resp["notified"] is False
+    assert wa.outbound() == []
+    assert services.store.get_conversation(ANA).state == "booking_service"
+
+
 def test_bookings_listing_and_staff_cancellation(client, services, wa):
     agent = services.agent
     say(services, "quiero una cita")

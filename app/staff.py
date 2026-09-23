@@ -147,10 +147,14 @@ class StaffDesk:
     def resolve(self, wa_id: str, notify: bool = True) -> dict:
         conv = self._conversation(wa_id)
         closed = self.store.resolve_handoffs(wa_id, by="staff")
+        notified, note = False, None
+        if not (conv.handoff or closed):
+            # Nothing to hand back; leave whatever the customer is doing alone.
+            return {"wa_id": wa_id, "resolved": 0, "bot_active": True, "notified": False,
+                    "note": "There was no open handoff."}
         self.store.set_handoff(wa_id, False)
         self.store.set_state(wa_id, State.IDLE)
         self.store.clear_draft(wa_id)
-        notified, note = False, None
         if notify:
             ok, why = self._can_message(conv)
             if ok:
