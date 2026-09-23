@@ -1,0 +1,29 @@
+you › hi
+bot › Hi! 👋 I'm the assistant for Barbería Studio Norte. How can I help today?
+      [1] Book appointment   [2] Info & prices   [3] Talk to a person
+you › how much is a haircut?
+bot › ✂️ Haircut: $12 · 30 min
+
+      Ask about our *promotions* too. To book, type *book*. 💈
+you › what time do you close on friday?
+bot › 🕐 On Friday we're open from 9:00 a.m. to 8:00 p.m. (last appointment: 7:00 p.m.).
+you › where are you located?
+bot › Here's what I found:
+
+      *Dirección*
+
+      Barbería Studio Norte
+      Calle 50, Edificio Costa del Este, local 3
+      Ciudad de Panamá, Panamá
+you › do you accept credit cards?
+bot › Here's what I found:
+
+      *¿Aceptan tarjeta y Yappy?*
+
+      Sí, aceptamos efectivo, tarjetas Visa y Mastercard, Yappy y ACH.
+you › do you sell guitars?
+bot › I couldn't find anything about that. Would you like me to connect you with someone from the Barbería Studio Norte team?
+      [1] Talk to a person   [2] Menu
+you › [Menu]
+bot › Hi! 👋 I'm the assistant for Barbería Studio Norte. How can I help today?
+      [1] Book appointment   [2] Info & prices   [3] Talk to a person

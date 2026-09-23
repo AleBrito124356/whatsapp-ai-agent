@@ -1,0 +1,16 @@
+# Traspaso a una persona, respuesta del equipo, devolución al bot y BAJA/ALTA.
+# Reproducir: python -m app chat --offline --now 2026-09-24T09:00 --script examples/handoff_es.txt
+necesito hablar con una persona
+¿hola? ¿sigue alguien ahí?
+/queue
+/staff Hola Ana, soy Carlos del equipo. ¿En qué te ayudo?
+¿puedo llevar a mi perro?
+/staff ¡Claro! Es bienvenido 🐶
+/resolve
+gracias!
+# Un día después la ventana de 24 horas está cerrada para el equipo.
+/advance 25h
+/staff ¿Todo bien con tu visita?
+BAJA
+hola
+ALTA

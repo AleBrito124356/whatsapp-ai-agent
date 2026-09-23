@@ -4,6 +4,24 @@ This walks you from zero to a working webhook, then to production. Budget about
 20 minutes. You need a Facebook account and a phone number for testing that is
 **not** already registered on the WhatsApp consumer app.
 
+## 0. Try it before you touch Meta
+
+You don't need a Meta app to see the agent work:
+
+```bash
+python -m app chat                                   # the real agent, in your terminal
+uvicorn app.main:app --port 8000                     # the real server, in dry-run mode
+python scripts/send_webhook.py "quiero una cita"     # signed webhook + the bot's reply
+```
+
+While `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` are empty or still the
+`.env.example` placeholders, the server runs in **dry-run**. Every reply is
+stored in a local outbox (`GET /dev/outbox`) and nothing is sent to
+graph.facebook.com. `/health` shows `"dry_run": true`. As soon as you paste
+real credentials it goes live. Set `WHATSAPP_DRY_RUN=1` to keep a
+configured server in dry-run. If `ADMIN_TOKEN` is set, `/dev/outbox` requires
+it as a bearer token; the tester reads it from your environment.
+
 ## 1. Create a Meta app
 
 1. Go to <https://developers.facebook.com/apps> and click **Create app**.
@@ -65,12 +83,15 @@ field this agent needs.
 Message your test number from the phone you allow-listed in step 2. You should
 see the agent reply with the main menu. Watch the server logs to trace the flow.
 
-You can also drive the agent locally without a phone using the included tester
-(it computes a valid signature from your `WHATSAPP_APP_SECRET`):
+You can also drive the agent locally without a phone using the included tester.
+It computes a valid signature from your `WHATSAPP_APP_SECRET`. In dry-run it
+prints the bot's reply; in live mode the reply goes to the WhatsApp number in
+`--from`.
 
 ```bash
 python scripts/send_webhook.py "hola, cuánto cuesta un corte?"
 python scripts/send_webhook.py --interactive svc:svc_corte "Corte de cabello"
+python scripts/send_webhook.py --button confirm:yes "Confirmar ✅"
 ```
 
 ## 6. Going to production
@@ -106,14 +127,48 @@ WhatsApp splits messaging into two modes:
 
 Practical implication for a booking bot: you can confirm an appointment
 instantly (in-window), but a "your appointment is tomorrow at 10:00" reminder the
-next day must go out as an approved **utility** template. Wiring templates is a
-natural next step; this repo focuses on the in-window conversation.
+next day must go out as an approved **utility** template. Sending templates is
+not implemented yet; this repo covers the in-window conversation. The staff
+API (next section) refuses free-form replies outside the window with
+`409 template_required`, so it never pretends to send something Meta would
+reject.
+
+## 7b. Staff workflow: working the handoff queue
+
+When a customer asks for a person, complains or sends a photo, the conversation
+is queued and the bot stops replying to them. Staff work the queue through the
+`/admin` API:
+
+1. Set `ADMIN_TOKEN` to a long random value and restart. Without it, `/admin`
+   answers `503`.
+2. List the queue:
+   `curl -H "Authorization: Bearer $ADMIN_TOKEN" https://<host>/admin/handoffs`.
+   Each entry shows the profile name, the reason, the last messages and
+   whether the 24-hour window is still open (`window.open`, `window.closes_at`).
+3. Read the whole conversation: `GET /admin/conversations/{wa_id}`.
+4. Reply: `POST /admin/conversations/{wa_id}/reply` with `{"text": "..."}`.
+   The message goes out through the same number and is saved with
+   `author=staff`. Replying to a contact who is not in the queue takes the
+   chat over, so the bot will not talk over you.
+5. Hand it back: `POST /admin/handoffs/{wa_id}/resolve` (optionally
+   `{"notify": false}`). The queue entry is closed and the bot answers the
+   customer's next message again.
+
+Bookings can be checked and cancelled from the same API: `GET /admin/bookings`
+and `POST /admin/bookings/{id}/cancel`. The customer is notified when the
+window allows it. To rehearse the whole routine offline, use
+`python -m app chat` with `/staff <text>`, `/resolve`, `/queue` and
+`/advance 25h`.
 
 ## 8. Opt-in and compliance
 
 - Only message people who have **opted in** to hear from your business on
   WhatsApp. A user messaging you first counts as opt-in for the service window.
-- Keep an easy opt-out ("responde BAJA para no recibir más mensajes").
+- Keep an easy opt-out. The agent honors BAJA, STOP, UNSUBSCRIBE and "darme de
+  baja" (matched against the whole message, so "¿está en planta baja?" is not
+  an opt-out). The contact gets one confirmation and then nothing, not even
+  read receipts, until they send ALTA or START. The staff API also refuses to
+  message them (`409 opted_out`).
 - Do not send unsolicited marketing. Meta enforces this and can restrict your
   number.
 - See Meta's WhatsApp Business Messaging Policy for the current rules.
@@ -126,3 +181,5 @@ natural next step; this repo focuses on the in-window conversation.
 | 403 on POST | Signature mismatch — `WHATSAPP_APP_SECRET` is wrong or the body was re-encoded by a proxy. |
 | Replies never arrive | Wrong `WHATSAPP_PHONE_NUMBER_ID`, expired token, or recipient not allow-listed (in sandbox). |
 | "Re-engagement" / 24h errors | You are trying to message outside the 24-hour window without a template. |
+| `/health` says `"dry_run": true` | `WHATSAPP_TOKEN` or `WHATSAPP_PHONE_NUMBER_ID` is empty or still a placeholder (or `WHATSAPP_DRY_RUN=1`). Replies are in `/dev/outbox`. |
+| `/admin/...` returns 503 | `ADMIN_TOKEN` is not set. |

@@ -1,0 +1,10 @@
+# English FAQ answered offline from the knowledge base and the catalog.
+# Replay: python -m app chat --offline --now 2026-09-24T09:00 --script examples/faq_en.txt
+hi
+how much is a haircut?
+what time do you close on friday?
+where are you located?
+do you accept credit cards?
+do you sell guitars?
+# [2] Menu
+2

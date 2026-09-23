@@ -1,91 +1,138 @@
-"""WhatsApp Cloud API client (Graph API).
+"""WhatsApp Cloud API client.
 
-Wraps the ``/{phone_number_id}/messages`` endpoint for the message types this
-agent uses: text, images, interactive reply buttons and lists, plus read
-receipts with a typing indicator. Also downloads inbound media (voice notes)
-so the agent can transcribe them.
+``WhatsAppClient`` exposes the message types this agent uses (text, images,
+interactive reply buttons and lists, read receipts) and inbound media
+download. Payloads are built by :mod:`app.wa_payloads`; *delivering* them is
+the job of a transport:
 
-All calls are synchronous (httpx.Client). The webhook runs the agent in a
-FastAPI background task, off the request path, so blocking here is fine.
+- :class:`GraphTransport` POSTs to ``graph.facebook.com/{version}/{phone_id}/messages``.
+- :class:`DryRunTransport` stores the exact payload in the local ``outbox``
+  table instead. It is selected automatically when WhatsApp credentials are
+  missing or are the ``.env.example`` placeholders (see ``Settings.dry_run``),
+  so a fresh checkout never calls Meta with a fake token.
+- :class:`CallbackTransport` hands each payload to a Python function (used by
+  the terminal chat simulator and tests).
+
+All calls are synchronous. The webhook runs the agent in a FastAPI background
+task, off the request path, so blocking here is fine.
 """
 
 from __future__ import annotations
 
+import itertools
 import logging
-from typing import Optional
+from typing import Callable, Optional, Protocol
 
 import httpx
 
+from . import wa_payloads as P
 from .config import Settings
 
 log = logging.getLogger("whatsapp_agent.wa_client")
 
 
-class WhatsAppClient:
-    def __init__(self, settings: Settings):
+class Transport(Protocol):
+    def deliver(self, payload: dict) -> Optional[dict]:
+        """Send one payload; return the Graph-style response or None on failure."""
+
+
+class GraphTransport:
+    """Live delivery through the Meta Graph API."""
+
+    def __init__(self, settings: Settings, http_client: Optional[httpx.Client] = None):
         self.settings = settings
-        self._client = httpx.Client(timeout=30.0)
+        self.http = http_client or httpx.Client(timeout=30.0)
 
-    # ------------------------------------------------------------- internals
-    def _headers(self) -> dict:
-        return {
-            "Authorization": f"Bearer {self.settings.whatsapp_token}",
-            "Content-Type": "application/json",
-        }
-
-    def _post(self, payload: dict) -> Optional[dict]:
-        if not self.settings.whatsapp_token or not self.settings.phone_number_id:
-            log.warning("WhatsApp not configured; would send: %s", payload)
-            return None
+    def deliver(self, payload: dict) -> Optional[dict]:
         try:
-            resp = self._client.post(
-                self.settings.messages_url, headers=self._headers(), json=payload
+            resp = self.http.post(
+                self.settings.messages_url,
+                headers={
+                    "Authorization": f"Bearer {self.settings.whatsapp_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
             )
             if resp.status_code >= 400:
-                log.error("Graph API %s: %s", resp.status_code, resp.text)
+                log.error("Graph API %s: %s", resp.status_code, resp.text[:500])
                 return None
             return resp.json()
         except httpx.HTTPError as exc:
             log.error("Graph API request failed: %s", exc)
             return None
 
-    @staticmethod
-    def _base(to: str) -> dict:
-        return {"messaging_product": "whatsapp", "recipient_type": "individual", "to": to}
+
+class DryRunTransport:
+    """Writes outbound messages to the ``outbox`` table instead of sending them.
+
+    Read receipts are not messages, so they are acknowledged but not stored.
+    """
+
+    def __init__(self, outbox):
+        self.outbox = outbox  # anything with add_outbox(wa_id, payload) -> int
+
+    def deliver(self, payload: dict) -> Optional[dict]:
+        if payload.get("status") == "read":
+            return {"success": True, "dry_run": True}
+        outbox_id = self.outbox.add_outbox(payload.get("to", ""), payload)
+        log.info("[dry-run] outbox #%s -> %s: %s", outbox_id, payload.get("to"), P.render(payload).as_text()[:120])
+        return {
+            "messaging_product": "whatsapp",
+            "messages": [{"id": f"wamid.DRYRUN.{outbox_id}"}],
+            "dry_run": True,
+        }
+
+
+class CallbackTransport:
+    """Passes every payload to ``callback`` (simulator / tests)."""
+
+    def __init__(self, callback: Callable[[dict], None]):
+        self.callback = callback
+        self._ids = itertools.count(1)
+
+    def deliver(self, payload: dict) -> Optional[dict]:
+        self.callback(payload)
+        return {"messaging_product": "whatsapp", "messages": [{"id": f"wamid.LOCAL.{next(self._ids)}"}]}
+
+
+class WhatsAppClient:
+    def __init__(
+        self,
+        settings: Settings,
+        transport: Optional[Transport] = None,
+        http_client: Optional[httpx.Client] = None,
+    ):
+        self.settings = settings
+        if transport is None:
+            if settings.dry_run:
+                # No outbox to write to: just log. app.deps.build_services wires
+                # a DryRunTransport backed by SQLite instead.
+                transport = CallbackTransport(
+                    lambda payload: log.warning(
+                        "WhatsApp not configured (dry-run); would send: %s", payload
+                    )
+                )
+            else:
+                transport = GraphTransport(settings, http_client)
+        self.transport = transport
+
+    @property
+    def dry_run(self) -> bool:
+        return not isinstance(self.transport, GraphTransport)
 
     # --------------------------------------------------------------- senders
+    def send_payload(self, payload: dict) -> Optional[dict]:
+        return self.transport.deliver(payload)
+
     def send_text(self, to: str, body: str, preview_url: bool = False) -> Optional[dict]:
-        payload = self._base(to)
-        payload["type"] = "text"
-        payload["text"] = {"preview_url": preview_url, "body": body[:4096]}
-        return self._post(payload)
+        return self.send_payload(P.text_payload(to, body, preview_url))
 
     def send_image(self, to: str, link: str, caption: str = "") -> Optional[dict]:
-        payload = self._base(to)
-        payload["type"] = "image"
-        image: dict = {"link": link}
-        if caption:
-            image["caption"] = caption[:1024]
-        payload["image"] = image
-        return self._post(payload)
+        return self.send_payload(P.image_payload(to, link, caption))
 
     def send_buttons(self, to: str, body: str, buttons: list[dict], header: str = "") -> Optional[dict]:
         """buttons: list of {"id": str, "title": str} (max 3, title <= 20 chars)."""
-        action_buttons = [
-            {"type": "reply", "reply": {"id": b["id"][:256], "title": b["title"][:20]}}
-            for b in buttons[:3]
-        ]
-        interactive: dict = {
-            "type": "button",
-            "body": {"text": body[:1024]},
-            "action": {"buttons": action_buttons},
-        }
-        if header:
-            interactive["header"] = {"type": "text", "text": header[:60]}
-        payload = self._base(to)
-        payload["type"] = "interactive"
-        payload["interactive"] = interactive
-        return self._post(payload)
+        return self.send_payload(P.buttons_payload(to, body, buttons, header))
 
     def send_list(
         self,
@@ -96,34 +143,8 @@ class WhatsAppClient:
         header: str = "",
         footer: str = "",
     ) -> Optional[dict]:
-        """sections: [{"title": str, "rows": [{"id","title","description"}]}].
-
-        WhatsApp limits: <=10 sections, <=10 rows total, title <= 24 chars,
-        description <= 72 chars, button_text <= 20 chars.
-        """
-        clean_sections = []
-        for section in sections:
-            rows = []
-            for row in section.get("rows", []):
-                entry = {"id": row["id"][:200], "title": row["title"][:24]}
-                if row.get("description"):
-                    entry["description"] = row["description"][:72]
-                rows.append(entry)
-            clean_sections.append({"title": section.get("title", "")[:24], "rows": rows})
-
-        interactive: dict = {
-            "type": "list",
-            "body": {"text": body[:1024]},
-            "action": {"button": button_text[:20], "sections": clean_sections},
-        }
-        if header:
-            interactive["header"] = {"type": "text", "text": header[:60]}
-        if footer:
-            interactive["footer"] = {"text": footer[:60]}
-        payload = self._base(to)
-        payload["type"] = "interactive"
-        payload["interactive"] = interactive
-        return self._post(payload)
+        """sections: [{"title": str, "rows": [{"id","title","description"}]}]."""
+        return self.send_payload(P.list_payload(to, body, button_text, sections, header, footer))
 
     def mark_read(self, message_id: str, typing: bool = True) -> Optional[dict]:
         """Mark a message read and (optionally) show the typing indicator.
@@ -131,14 +152,7 @@ class WhatsAppClient:
         The typing indicator auto-dismisses when you send the next message or
         after ~25 seconds.
         """
-        payload = {
-            "messaging_product": "whatsapp",
-            "status": "read",
-            "message_id": message_id,
-        }
-        if typing:
-            payload["typing_indicator"] = {"type": "text"}
-        return self._post(payload)
+        return self.send_payload(P.read_payload(message_id, typing))
 
     # ----------------------------------------------------------------- media
     def download_media(self, media_id: str) -> Optional[bytes]:
@@ -146,22 +160,20 @@ class WhatsAppClient:
 
         Used for inbound voice notes. Hand the returned bytes to
         ``app.transcribe.transcribe_audio`` (faster-whisper) to get text.
+        Not available in dry-run mode (there is no real media to fetch).
         """
-        if not self.settings.whatsapp_token:
-            log.warning("WhatsApp not configured; cannot download media %s", media_id)
+        if self.dry_run:
+            log.info("[dry-run] cannot download media %s", media_id)
             return None
+        http = self.transport.http  # type: ignore[attr-defined]
+        auth = {"Authorization": f"Bearer {self.settings.whatsapp_token}"}
         try:
-            meta = self._client.get(
-                f"{self.settings.graph_base_url}/{media_id}",
-                headers={"Authorization": f"Bearer {self.settings.whatsapp_token}"},
-            )
+            meta = http.get(f"{self.settings.graph_base_url}/{media_id}", headers=auth)
             meta.raise_for_status()
             url = meta.json().get("url")
             if not url:
                 return None
-            media = self._client.get(
-                url, headers={"Authorization": f"Bearer {self.settings.whatsapp_token}"}
-            )
+            media = http.get(url, headers=auth)
             media.raise_for_status()
             return media.content
         except httpx.HTTPError as exc:
@@ -169,4 +181,6 @@ class WhatsAppClient:
             return None
 
     def close(self) -> None:
-        self._client.close()
+        http = getattr(self.transport, "http", None)
+        if http is not None:
+            http.close()

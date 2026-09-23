@@ -12,27 +12,30 @@ import json
 import logging
 from typing import Iterator
 
-from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 
-from .config import get_settings
-from .deps import agent, store
+from .deps import Services
 from .models import InboundMessage
 from .security import verify_signature
 
 log = logging.getLogger("whatsapp_agent.webhook")
 
 router = APIRouter()
-settings = get_settings()
+
+
+def get_services(request: Request) -> Services:
+    """The Services attached to the running app (see app.main.create_app)."""
+    return request.app.state.get_services()
 
 
 @router.get("/webhook", response_class=PlainTextResponse)
-async def verify(request: Request) -> PlainTextResponse:
+async def verify(request: Request, services: Services = Depends(get_services)) -> PlainTextResponse:
     params = request.query_params
     mode = params.get("hub.mode")
     token = params.get("hub.verify_token")
     challenge = params.get("hub.challenge")
-    if mode == "subscribe" and token == settings.verify_token:
+    if mode == "subscribe" and token == services.settings.verify_token:
         log.info("Webhook verified by Meta.")
         return PlainTextResponse(challenge or "")
     log.warning("Webhook verification failed (mode=%s).", mode)
@@ -44,8 +47,10 @@ async def receive(
     request: Request,
     background: BackgroundTasks,
     x_hub_signature_256: str | None = Header(default=None),
+    services: Services = Depends(get_services),
 ) -> dict:
     raw = await request.body()
+    settings = services.settings
 
     if settings.signature_enforced:
         if not verify_signature(settings.app_secret, raw, x_hub_signature_256):
@@ -65,13 +70,21 @@ async def receive(
     accepted = 0
     for msg in parse_messages(payload):
         # mark_processed is an atomic INSERT; False means we have seen this id.
-        if not store.mark_processed(msg.message_id, msg.wa_id):
+        if not services.store.mark_processed(msg.message_id, msg.wa_id):
             log.info("Skipping duplicate message %s", msg.message_id)
             continue
-        background.add_task(agent.handle_message, msg)
+        background.add_task(process_message, services, msg)
         accepted += 1
 
     return {"status": "received", "accepted": accepted}
+
+
+def process_message(services: Services, msg: InboundMessage) -> None:
+    """Run the agent for one message, then flag it handled (for the tester)."""
+    try:
+        services.agent.handle_message(msg)
+    finally:
+        services.store.mark_handled(msg.message_id)
 
 
 def parse_messages(payload: dict) -> Iterator[InboundMessage]:
@@ -139,3 +152,4 @@ def _parse_one(message: dict, profile_name: str | None) -> InboundMessage | None
         base["type"] = "unsupported"
 
     return InboundMessage(**base)
+
