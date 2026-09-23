@@ -61,19 +61,30 @@ MONTH_ABBR = {
 
 # --- Bilingual copy ---------------------------------------------------------
 # Values are (es, en). Use ``t(key, lang, **kwargs)`` to render with .format().
+# Button titles must fit in 20 characters, list row titles in 24.
 STRINGS: dict[str, tuple[str, str]] = {
+    # ---------------------------------------------------------------- menu
     "menu_body": (
         "¡Hola! 👋 Soy el asistente de {business}. ¿En qué te ayudo hoy?",
         "Hi! 👋 I'm the assistant for {business}. How can I help today?",
     ),
     "menu_book": ("Reservar cita", "Book appointment"),
+    "menu_manage": ("Mis citas", "My appointments"),
     "menu_info": ("Info y precios", "Info & prices"),
     "menu_human": ("Hablar con alguien", "Talk to a person"),
+    "menu_main": ("Menú", "Menu"),
+    "menu_button": ("Ver opciones", "See options"),
+    "menu_section": ("Opciones", "Options"),
     "info_prompt": (
         "Claro. Pregúntame lo que quieras: precios, horarios, ubicación, "
         "servicios o promociones. ✂️",
         "Sure. Ask me anything: prices, hours, location, services or promos. ✂️",
     ),
+    "option_expired": (
+        "Esa opción ya no está disponible. 🙏 Te muestro las opciones actuales:",
+        "That option is no longer available. 🙏 Here are the current ones:",
+    ),
+    # ------------------------------------------------------------- booking
     "choose_service": (
         "Perfecto. ¿Qué servicio te gustaría reservar?",
         "Great. Which service would you like to book?",
@@ -94,13 +105,33 @@ STRINGS: dict[str, tuple[str, str]] = {
     ),
     "times_button": ("Elegir hora", "Pick a time"),
     "times_section": ("Horarios", "Times"),
+    "more_times": ("Más horarios ➡️", "More times ➡️"),
+    "more_times_desc": ("Después de las {time}", "After {time}"),
     "no_slots": (
         "No quedan horarios libres ese día. Elige otro, por favor:",
         "No free slots left that day. Please pick another one:",
     ),
+    "no_days": (
+        "Lo siento, no quedan horarios libres en las próximas semanas. "
+        "Te paso con el equipo para buscar una opción.",
+        "Sorry, there are no free slots in the coming weeks. Let me pass you "
+        "to the team to find an option.",
+    ),
+    "slot_taken": (
+        "¡Uy! Alguien acaba de reservar el {date} a las {time}. Elige otra hora, por favor:",
+        "Oops! Someone just booked {date} at {time}. Please pick another time:",
+    ),
     "ask_name": (
         "Ya casi. ¿A nombre de quién agendo la cita?",
         "Almost done. What name should I book it under?",
+    ),
+    "ask_name_button": (
+        "Ya casi. ¿A nombre de quién agendo la cita? Escríbelo o toca tu nombre:",
+        "Almost done. What name should I book it under? Type it or tap your name:",
+    ),
+    "name_invalid": (
+        "Solo necesito tu nombre, por ejemplo: María López 🙂",
+        "I just need your name, for example: Maria Lopez 🙂",
     ),
     "confirm_body": (
         "Confirmemos tu cita:\n\n"
@@ -121,18 +152,83 @@ STRINGS: dict[str, tuple[str, str]] = {
     "confirm_cancel": ("Cancelar", "Cancel"),
     "booking_done": (
         "¡Listo, {name}! 🎉 Tu cita para {service} quedó agendada el {date} a las "
-        "{time}. Te esperamos en {business}. Si necesitas cambiarla, escríbeme.",
+        "{time}. Te esperamos en {business}. Si necesitas cambiarla o cancelarla, "
+        "escribe *mis citas*.",
         "All set, {name}! 🎉 Your {service} appointment is booked for {date} at "
-        "{time}. See you at {business}. Message me if you need to change it.",
+        "{time}. See you at {business}. To change or cancel it, type *my appointments*.",
     ),
     "booking_cancelled": (
-        "Sin problema, cancelé la reserva. Aquí estoy cuando quieras agendar. 👋",
-        "No problem, I cancelled it. I'm here whenever you'd like to book. 👋",
+        "Sin problema, dejé la reserva sin hacer. Aquí estoy cuando quieras agendar. 👋",
+        "No problem, I dropped that booking. I'm here whenever you'd like to book. 👋",
     ),
     "booking_reset": (
         "Empecemos de nuevo. ",
         "Let's start over. ",
     ),
+    # ------------------------------------------------- my appointments
+    "manage_none": (
+        "No tienes citas próximas. ¿Quieres reservar una?",
+        "You don't have any upcoming appointments. Would you like to book one?",
+    ),
+    "manage_choose": (
+        "Estas son tus próximas citas. ¿Cuál quieres gestionar?",
+        "Here are your upcoming appointments. Which one do you want to manage?",
+    ),
+    "manage_button": ("Ver citas", "See appointments"),
+    "manage_section": ("Tus citas", "Your appointments"),
+    "manage_detail": (
+        "Tu cita:\n\n✂️ {service}\n📅 {date}\n🕐 {time}\n🙍 {name}\n\n¿Qué quieres hacer?",
+        "Your appointment:\n\n✂️ {service}\n📅 {date}\n🕐 {time}\n🙍 {name}\n\n"
+        "What would you like to do?",
+    ),
+    "appt_cancel_btn": ("Cancelar cita", "Cancel it"),
+    "appt_resched_btn": ("Cambiar fecha", "Reschedule"),
+    "appt_back_btn": ("Dejarla así", "Keep it"),
+    "cancel_confirm_body": (
+        "¿Seguro que quieres cancelar tu cita de {service} del {date} a las {time}?",
+        "Are you sure you want to cancel your {service} appointment on {date} at {time}?",
+    ),
+    "cancel_yes": ("Sí, cancelar", "Yes, cancel"),
+    "cancel_no": ("No, mantener", "No, keep it"),
+    "appt_cancelled": (
+        "Listo, cancelé tu cita de {service} del {date} a las {time}. "
+        "¡Esperamos verte pronto! 👋",
+        "Done, I cancelled your {service} appointment on {date} at {time}. "
+        "Hope to see you soon! 👋",
+    ),
+    "appt_kept": (
+        "Perfecto, tu cita sigue en pie. 👍",
+        "Great, your appointment stays as it is. 👍",
+    ),
+    "appt_gone": (
+        "Esa cita ya no está activa.",
+        "That appointment is no longer active.",
+    ),
+    "reschedule_choose_date": (
+        "¿A qué día quieres mover tu cita de {service}?",
+        "Which day would you like to move your {service} appointment to?",
+    ),
+    "reschedule_confirm_body": (
+        "Confirmemos el cambio:\n\n"
+        "✂️ {service}\n"
+        "❌ Antes: {old_date} a las {old_time}\n"
+        "✅ Ahora: {date} a las {time}\n\n"
+        "¿Todo correcto?",
+        "Let's confirm the change:\n\n"
+        "✂️ {service}\n"
+        "❌ Before: {old_date} at {old_time}\n"
+        "✅ New: {date} at {time}\n\n"
+        "Is everything correct?",
+    ),
+    "rescheduled_done": (
+        "¡Listo, {name}! 🎉 Tu cita de {service} ahora es el {date} a las {time}.",
+        "All set, {name}! 🎉 Your {service} appointment is now on {date} at {time}.",
+    ),
+    "reschedule_aborted": (
+        "Sin problema, tu cita se mantiene el {date} a las {time}. 👍",
+        "No problem, your appointment stays on {date} at {time}. 👍",
+    ),
+    # --------------------------------------------------------- handoff
     "handoff": (
         "Con gusto. Un miembro del equipo de {business} continuará esta "
         "conversación contigo lo antes posible. 🙌 Mientras tanto puedes dejar "
@@ -140,6 +236,35 @@ STRINGS: dict[str, tuple[str, str]] = {
         "Of course. Someone from the {business} team will pick up this chat as "
         "soon as possible. 🙌 Feel free to leave your message here.",
     ),
+    "handoff_resolved": (
+        "El asistente automático de {business} está de vuelta. 🤖 Si necesitas "
+        "algo más, escribe *menú*.",
+        "The {business} assistant is back. 🤖 If you need anything else, type *menu*.",
+    ),
+    "staff_cancelled": (
+        "Hola {name}, el equipo de {business} canceló tu cita de {service} del "
+        "{date} a las {time}. Escribe *reservar* para elegir otro horario.",
+        "Hi {name}, the {business} team cancelled your {service} appointment on "
+        "{date} at {time}. Type *book* to pick another slot.",
+    ),
+    "no_answer": (
+        "No encontré información sobre eso. ¿Quieres que te comunique con una "
+        "persona del equipo de {business}?",
+        "I couldn't find anything about that. Would you like me to connect you "
+        "with someone from the {business} team?",
+    ),
+    # ------------------------------------------------------ compliance
+    "optout_ack": (
+        "Listo, no te enviaremos más mensajes por este chat. Si cambias de "
+        "opinión, escribe ALTA. 👋",
+        "Done: you won't get any more messages from us here. If you change your "
+        "mind, reply START. 👋",
+    ),
+    "optin_ack": (
+        "¡Bienvenido de vuelta! Volverás a recibir nuestras respuestas. 🙌",
+        "Welcome back! You'll receive our replies again. 🙌",
+    ),
+    # ------------------------------------------------------------ media
     "image_received": (
         "Recibí tu imagen, gracias. 📸 Un momento mientras un miembro del equipo "
         "la revisa.",
@@ -155,15 +280,10 @@ STRINGS: dict[str, tuple[str, str]] = {
         "Escuché tu nota de voz: \"{text}\"",
         "Here's what I heard: \"{text}\"",
     ),
+    # -------------------------------------------------------------- faq
     "fallback_prefix": (
         "Esto es lo que encontré:",
         "Here's what I found:",
-    ),
-    "no_answer": (
-        "No estoy seguro de eso. Te paso con una persona del equipo de {business} "
-        "para ayudarte mejor. 🙌",
-        "I'm not sure about that. Let me connect you with someone from the "
-        "{business} team who can help. 🙌",
     ),
     "reset_ack": (
         "Listo, volvamos a empezar. 👋",

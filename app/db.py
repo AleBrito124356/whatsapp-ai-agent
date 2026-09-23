@@ -64,7 +64,8 @@ class Database:
     def _connect(self) -> Iterator[sqlite3.Connection]:
         con = sqlite3.connect(self.db_path, timeout=30, isolation_level=None)
         con.row_factory = sqlite3.Row
-        con.execute("PRAGMA journal_mode = WAL;")
+        # journal_mode=WAL is persistent (set once by schema.sql); the busy
+        # timeout is per connection.
         con.execute("PRAGMA busy_timeout = 5000;")
         try:
             yield con
@@ -158,6 +159,18 @@ class Database:
                 (date,),
             ).fetchall()
         return {r["time"] for r in rows}
+
+    def booked_times_between(self, first: str, last: str) -> dict[str, set[str]]:
+        """{date: {times}} of confirmed bookings for first <= date <= last."""
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT date, time FROM bookings WHERE date BETWEEN ? AND ? AND status = 'confirmed'",
+                (first, last),
+            ).fetchall()
+        out: dict[str, set[str]] = {}
+        for r in rows:
+            out.setdefault(r["date"], set()).add(r["time"])
+        return out
 
     def create_booking(
         self,
