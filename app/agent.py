@@ -124,6 +124,11 @@ INFO_WORDS = {
     "cierran", "ubicacion", "direccion", "price", "prices", "cost", "hours", "open",
     "close", "address", "located", "promo", "promociones",
 }
+THANKS_KW = {
+    "gracias", "muchas", "mil", "thanks", "thank", "you", "ty", "ok", "okay", "vale",
+    "perfecto", "genial", "listo", "great", "cool", "bye", "adios", "chao", "chau",
+    "excelente", "buenisimo", "super", "dale", "de", "nada",
+}
 YES_WORDS = {"si", "sip", "ok", "okay", "dale", "correcto", "confirmo", "yes", "yep", "sure", "claro"}
 NO_WORDS = {"no", "nop", "nope"}
 WEEKDAYS = {
@@ -396,7 +401,15 @@ class Agent:
             self._send_menu(wa_id, lang)
             return
 
-        # 5. Classify and dispatch.
+        # 5. "gracias", "ok 👍", a lone emoji: acknowledge, don't search the FAQ.
+        if not toks or toks <= THANKS_KW:
+            if conv.state in IN_FLOW_STATES:
+                self._resend_step(conv)
+            else:
+                self._send_text(wa_id, t("thanks_reply", lang))
+            return
+
+        # 6. Classify and dispatch.
         intent = self._route_intent(text)
         if intent == "manage":
             self._start_manage(conv)

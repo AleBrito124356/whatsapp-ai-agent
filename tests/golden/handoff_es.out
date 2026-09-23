@@ -1,0 +1,21 @@
+you › necesito hablar con una persona
+bot › Con gusto. Un miembro del equipo de Barbería Studio Norte continuará esta conversación contigo lo antes posible. 🙌 Mientras tanto puedes dejar tu mensaje aquí.
+you › ¿hola? ¿sigue alguien ahí?
+   1 open handoff(s)
+   - 50760001234 Ana reason=requested
+staff › Hola Ana, soy Carlos del equipo. ¿En qué te ayudo?
+you › ¿puedo llevar a mi perro?
+staff › ¡Claro! Es bienvenido 🐶
+bot › El asistente automático de Barbería Studio Norte está de vuelta. 🤖 Si necesitas algo más, escribe *menú*.
+   ✔ handoff resolved (1 closed); the bot is back
+you › gracias!
+bot › ¡Con gusto! 🙌 Si necesitas algo más, escribe *menú*.
+   ⏱ clock advanced 25h
+   ✖ staff: template_required: Outside WhatsApp's 24-hour window (the customer last wrote 25.0 h ago). Free-form messages are not allowed; send an approved message template instead (see docs/meta-setup.md, section 7).
+you › BAJA
+bot › Listo, no te enviaremos más mensajes por este chat. Si cambias de opinión, escribe ALTA (o START). 👋
+you › hola
+you › ALTA
+bot › ¡Bienvenido de vuelta! Volverás a recibir nuestras respuestas. 🙌
+bot › ¡Hola! 👋 Soy el asistente de Barbería Studio Norte. ¿En qué te ayudo hoy?
+      [1] Reservar cita   [2] Info y precios   [3] Hablar con alguien

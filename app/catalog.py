@@ -285,6 +285,10 @@ STRINGS: dict[str, tuple[str, str]] = {
         "Esto es lo que encontré:",
         "Here's what I found:",
     ),
+    "thanks_reply": (
+        "¡Con gusto! 🙌 Si necesitas algo más, escribe *menú*.",
+        "You're welcome! 🙌 If you need anything else, type *menu*.",
+    ),
     "reset_ack": (
         "Listo, volvamos a empezar. 👋",
         "Done, let's start fresh. 👋",

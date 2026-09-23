@@ -1,0 +1,82 @@
+you › hola
+bot › ¡Hola! 👋 Soy el asistente de Barbería Studio Norte. ¿En qué te ayudo hoy?
+      [1] Reservar cita   [2] Info y precios   [3] Hablar con alguien
+you › [Reservar cita]
+bot › Perfecto. ¿Qué servicio te gustaría reservar?
+      ☰ Ver servicios
+        1) Corte de cabello · $12 · 30 min
+        2) Corte + barba · $18 · 45 min
+        3) Afeitado clásico · $10 · 30 min
+        4) Arreglo de barba · $8 · 20 min
+        5) Corte infantil · $9 · 30 min
+        6) Tinte / color · $25 · 60 min
+you › [Corte + barba]
+bot › ¿Para qué día? Estos son los próximos días disponibles:
+      ☰ Elegir día
+        1) Jue 24 sep · Hoy
+        2) Vie 25 sep · Mañana
+        3) Sáb 26 sep
+        4) Lun 28 sep
+        5) Mar 29 sep
+        6) Mié 30 sep
+        7) Jue 1 oct
+you › ¿cuánto cuesta el corte + barba?
+bot › Esto es lo que encontré:
+
+      ## ¿Cuánto dura un corte?
+
+      Un corte de cabello toma unos 30 minutos. El combo corte + barba toma alrededor de 45 minutos.
+bot › ¿Para qué día? Estos son los próximos días disponibles:
+      ☰ Elegir día
+        1) Jue 24 sep · Hoy
+        2) Vie 25 sep · Mañana
+        3) Sáb 26 sep
+        4) Lun 28 sep
+        5) Mar 29 sep
+        6) Mié 30 sep
+        7) Jue 1 oct
+you › [Vie 25 sep]
+bot › ¿A qué hora te viene bien el Vie 25 sep?
+      ☰ Elegir hora
+        1) 09:00
+        2) 10:00
+        3) 11:00
+        4) 12:00
+        5) 13:00
+        6) 14:00
+        7) 15:00
+        8) 16:00
+        9) 17:00
+       10) Más horarios ➡️ · Después de las 17:00
+you › [Más horarios ➡️]
+bot › ¿A qué hora te viene bien el Vie 25 sep?
+      ☰ Elegir hora
+        1) 18:00
+        2) 19:00
+you › [19:00]
+bot › Ya casi. ¿A nombre de quién agendo la cita? Escríbelo o toca tu nombre:
+      [1] Ana
+you › Carlos Ruiz
+bot › Confirmemos tu cita:
+
+      ✂️ Servicio: Corte + barba
+      📅 Fecha: Vie 25 sep
+      🕐 Hora: 19:00
+      🙍 Nombre: Carlos Ruiz
+
+      ¿Todo correcto?
+      [1] Confirmar ✅   [2] Cambiar   [3] Cancelar
+you › [Confirmar ✅]
+bot › ¡Listo, Carlos Ruiz! 🎉 Tu cita para Corte + barba quedó agendada el Vie 25 sep a las 19:00. Te esperamos en Barbería Studio Norte. Si necesitas cambiarla o cancelarla, escribe *mis citas*.
+you › mis citas
+bot › Tu cita:
+
+      ✂️ Corte + barba
+      📅 Vie 25 sep
+      🕐 19:00
+      🙍 Carlos Ruiz
+
+      ¿Qué quieres hacer?
+      [1] Cancelar cita   [2] Cambiar fecha   [3] Dejarla así
+you › [Dejarla así]
+bot › Perfecto, tu cita sigue en pie. 👍

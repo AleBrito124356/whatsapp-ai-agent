@@ -1,0 +1,107 @@
+you › I want to book an appointment
+bot › Great. Which service would you like to book?
+      ☰ See services
+        1) Haircut · $12 · 30 min
+        2) Haircut + beard · $18 · 45 min
+        3) Classic shave · $10 · 30 min
+        4) Beard trim · $8 · 20 min
+        5) Kids haircut · $9 · 30 min
+        6) Hair color · $25 · 60 min
+you › [Haircut]
+bot › Which day works? Here are the next available days:
+      ☰ Pick a day
+        1) Thu 24 Sep · Today
+        2) Fri 25 Sep · Tomorrow
+        3) Sat 26 Sep
+        4) Mon 28 Sep
+        5) Tue 29 Sep
+        6) Wed 30 Sep
+        7) Thu 1 Oct
+you › tomorrow
+bot › What time suits you on Fri 25 Sep?
+      ☰ Pick a time
+        1) 09:00
+        2) 10:00
+        3) 11:00
+        4) 12:00
+        5) 13:00
+        6) 14:00
+        7) 15:00
+        8) 16:00
+        9) 17:00
+       10) More times ➡️ · After 17:00
+you › 4pm
+bot › Almost done. What name should I book it under? Type it or tap your name:
+      [1] Ana
+you › [Ana]
+bot › Let's confirm your appointment:
+
+      ✂️ Service: Haircut
+      📅 Date: Fri 25 Sep
+      🕐 Time: 16:00
+      🙍 Name: Ana
+
+      Is everything correct?
+      [1] Confirm ✅   [2] Change   [3] Cancel
+you › [Confirm ✅]
+bot › All set, Ana! 🎉 Your Haircut appointment is booked for Fri 25 Sep at 16:00. See you at Barbería Studio Norte. To change or cancel it, type *my appointments*.
+you › I need to reschedule my appointment
+bot › Your appointment:
+
+      ✂️ Haircut
+      📅 Fri 25 Sep
+      🕐 16:00
+      🙍 Ana
+
+      What would you like to do?
+      [1] Cancel it   [2] Reschedule   [3] Keep it
+you › [Reschedule]
+bot › Which day would you like to move your Haircut appointment to?
+      ☰ Pick a day
+        1) Thu 24 Sep · Today
+        2) Fri 25 Sep · Tomorrow
+        3) Sat 26 Sep
+        4) Mon 28 Sep
+        5) Tue 29 Sep
+        6) Wed 30 Sep
+        7) Thu 1 Oct
+you › saturday
+bot › What time suits you on Sat 26 Sep?
+      ☰ Pick a time
+        1) 08:00
+        2) 09:00
+        3) 10:00
+        4) 11:00
+        5) 12:00
+        6) 13:00
+        7) 14:00
+        8) 15:00
+        9) 16:00
+       10) 17:00
+you › 11am
+bot › Let's confirm the change:
+
+      ✂️ Haircut
+      ❌ Before: Fri 25 Sep at 16:00
+      ✅ New: Sat 26 Sep at 11:00
+
+      Is everything correct?
+      [1] Confirm ✅   [2] Change   [3] Cancel
+you › [Confirm ✅]
+bot › All set, Ana! 🎉 Your Haircut appointment is now on Sat 26 Sep at 11:00.
+you › cancel my appointment
+bot › Your appointment:
+
+      ✂️ Haircut
+      📅 Sat 26 Sep
+      🕐 11:00
+      🙍 Ana
+
+      What would you like to do?
+      [1] Cancel it   [2] Reschedule   [3] Keep it
+you › [Cancel it]
+bot › Are you sure you want to cancel your Haircut appointment on Sat 26 Sep at 11:00?
+      [1] Yes, cancel   [2] No, keep it
+you › [Yes, cancel]
+bot › Done, I cancelled your Haircut appointment on Sat 26 Sep at 11:00. Hope to see you soon! 👋
+   #1    2026-09-26 11:00  cancelled Ana                  Haircut            50760001234
