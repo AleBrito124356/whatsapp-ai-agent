@@ -177,3 +177,14 @@ def test_live_mode_posts_to_graph_and_hides_the_outbox(tmp_path, clock):
     assert {"status": "read", "message_id": "wamid.live"}.items() <= bodies[0].items()
     assert bodies[-1]["type"] == "interactive"
     assert seen[-1].headers["Authorization"] == "Bearer EAAGrealtoken123"
+
+
+def test_outbox_requires_the_admin_token_when_one_is_set(tmp_path, clock):
+    token = "".join(["outbox", "-", "guard", "-", "token"])
+    settings = Settings(app_secret=SECRET, admin_token=token)
+    services = build_services(settings, db_path=tmp_path / "guard.sqlite", clock=clock, llm=OfflineLLM())
+    with TestClient(create_app(services)) as c:
+        assert c.get("/dev/outbox").status_code == 401
+        assert c.get("/dev/outbox", headers={"Authorization": "Bearer nope"}).status_code == 401
+        ok = c.get("/dev/outbox", headers={"Authorization": f"Bearer {token}"})
+        assert ok.status_code == 200 and ok.json()["dry_run"] is True

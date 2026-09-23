@@ -127,12 +127,16 @@ def main() -> int:
         print("WARNING: WHATSAPP_APP_SECRET not set; sending without a signature.")
 
     outbox = outbox_url(TARGET_URL)
+    admin_token = os.getenv("ADMIN_TOKEN", "").strip()
+    outbox_headers = {"Authorization": f"Bearer {admin_token}"} if admin_token else {}
     cursor = None
     if not args.no_wait:
         try:
-            probe = httpx.get(outbox, params={"limit": 1}, timeout=5.0)
+            probe = httpx.get(outbox, params={"limit": 1}, headers=outbox_headers, timeout=5.0)
             if probe.status_code == 200:
                 cursor = probe.json()["cursor"]
+            elif probe.status_code == 401:
+                print("(the outbox needs ADMIN_TOKEN: set the same value in this shell or .env)")
             else:
                 print("(server is in live mode: replies go to real WhatsApp, not the outbox)")
         except httpx.HTTPError:
@@ -159,6 +163,7 @@ def main() -> int:
         out = httpx.get(
             outbox,
             params={"wa_id": args.from_id, "after": cursor, "for_message": message_id},
+            headers=outbox_headers,
             timeout=5.0,
         ).json()
         if out["handled"]:
